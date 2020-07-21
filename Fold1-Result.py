@@ -54,7 +54,7 @@ print('Cuda is available?', cuda_yes)
 device = torch.device("cuda:0" if cuda_yes else "cpu")
 print('Device:', device)
 
-data_dir = os.path.join( '/content/Arman-Fold1-Original/data/Arman-Fold1-Original/')
+data_dir = os.path.join( './content/Arman-Fold1-Original/data/Arman-Fold1-Original/')
 # "Whether to run training."
 do_train = True
 # "Whether to run eval on the dev set."
