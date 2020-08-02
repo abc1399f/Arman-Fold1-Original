@@ -16,14 +16,14 @@ import torch.autograd as autograd
 import torch.optim as optim
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils import data
-
+import argparse
 from tqdm import tqdm, trange
 import collections
-
 from pytorch_pretrained_bert.modeling import BertModel, BertForTokenClassification, BertLayerNorm
 import pickle
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 from pytorch_pretrained_bert.tokenization import BertTokenizer
+import shutil
 
 #def set_work_dir(local_path="ner_bert_crf", server_path="ner_bert_crf"):
 #    if (os.path.exists(os.getenv('/content/HOME/ner_bert_crf'))):
@@ -54,7 +54,7 @@ print('Cuda is available?', cuda_yes)
 device = torch.device("cuda:0" if cuda_yes else "cpu")
 print('Device:', device)
 
-data_dir = os.path.join( '/content/Arman-Fold1-Original/data/Arman-Fold1-Original/')
+data_dir = os.path.join( '/content/Arman-Fold1-Original/data/Fold1/')
 # "Whether to run training."
 do_train = True
 # "Whether to run eval on the dev set."
@@ -74,7 +74,7 @@ weight_decay_crf_fc = 5e-6 #0.005
 total_train_epochs = 20
 gradient_accumulation_steps = 1
 warmup_proportion = 0.1
-output_dir = '/content/Arman-Fold1-Original/output/'
+output_dir = './content/Arman-Fold1-Original/output/'
 bert_model_scale = 'bert-base-multilingual-cased'
 do_lower_case = False
 # eval_batch_size = 8
@@ -86,8 +86,9 @@ do_lower_case = False
 # save_checkpoints_steps = 1000
 # "How many steps to make in each estimator call."
 # iterations_per_loop = 1000
-
-
+#parser = argparse.ArgumentParser()
+#parser.add_argument("-- data_portion", default=0.025, type=float,  help="data portion.")
+#args = parser.parse_args() 
 # %%
 '''
 Functions and Classes for read and organize data set
@@ -315,80 +316,6 @@ class NerDataset(data.Dataset):
 
         return input_ids_list, input_mask_list, segment_ids_list, predict_mask_list, label_ids_list
 
-    
-def f1_score_report(y_true, y_pred, _id):
-    
-    
-    
-    num_proposed = (np.logical_and(y_pred==_id, y_pred>3)).sum()
-    num_correct = (np.logical_and(y_true==_id, y_true==y_pred, y_true>3)).sum()
-    num_gold = (np.logical_and(y_true==_id, y_true>3)).sum()
-    #print(num_proposed)
-    #print(num_correct)
-    #print(num_gold)
-
-    try:
-        precision = num_correct / num_proposed
-    except ZeroDivisionError:
-        precision = 1.0
-
-    try:
-        recall = num_correct / num_gold
-    except ZeroDivisionError:
-        recall = 1.0
-
-    try:
-        f1 = 2*precision*recall / (precision + recall)
-    except ZeroDivisionError:
-        if precision*recall==0:
-            f1=1.0
-        else:
-            f1=0
-
-    return precision, recall, f1
-    
-    
-def report(y_true, y_pred):
-    '''
-    list= [ 'X', '[CLS]', '[SEP]', 'O', 'I-loc', 'B-pers', 'I-pers', 'I-org', 'I-pro', 'B-pro','I-fac','B-fac', 'B-loc', 'B-org', 'B-event', 'I-event']
-    '''
-    p, r, f= f1_score_report(y_true, y_pred, 4)
-    print("precision, recall, F1 for I-loc", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 12)
-    print("precision, recall, F1 for B-loc", p, r, f)     
-    
-    p, r, f= f1_score_report(y_true, y_pred, 5)
-    print("precision, recall, F1 for B-pers", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 6)
-    print("precision, recall, F1 for I-pers", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 7)
-    print("precision, recall, F1 for I-org", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 13)
-    print("precision, recall, F1 for B-org", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 8)
-    print("precision, recall, F1 for I-pro", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 9)
-    print("precision, recall, F1 for B-pro", p, r, f) 
-    
-    p, r, f= f1_score_report(y_true, y_pred, 10)
-    print("precision, recall, F1 for I-fac", p, r, f)
-    
-    p, r, f= f1_score_report(y_true, y_pred, 11)
-    print("precision, recall, F1 for B-fac", p, r, f)   
- 
-       
-    p, r, f= f1_score_report(y_true, y_pred, 14)
-    print("precision, recall, F1 for B-event", p, r, f)   
-    
-    p, r, f= f1_score_report(y_true, y_pred, 15)
-    print("precision, recall, F1 for I-event", p, r, f)  
-    
 def f1_score(y_true, y_pred):
     '''
     0,1,2,3 are [CLS],[SEP],[X],O
@@ -398,9 +325,9 @@ def f1_score(y_true, y_pred):
     num_proposed = len(y_pred[y_pred>ignore_id])
     num_correct = (np.logical_and(y_true==y_pred, y_true>ignore_id)).sum()
     num_gold = len(y_true[y_true>ignore_id])
-    print(num_proposed)
-    print(num_correct)
-    print(num_gold)
+    #print(num_proposed)
+    #print(num_correct)
+    #print(num_gold)
 
     try:
         precision = num_correct / num_proposed
@@ -728,7 +655,6 @@ class BERT_CRF_NER(nn.Module):
         
         # T = self.max_seq_length
         T = feats.shape[1]
-        #print("TTTTTTTTTTT",T)
         batch_size = feats.shape[0]
 
         # batch_transitions=self.transitions.expand(batch_size,self.num_labels,self.num_labels)
@@ -752,14 +678,19 @@ class BERT_CRF_NER(nn.Module):
         path = torch.zeros((batch_size, T), dtype=torch.long).to(self.device)
 
         # max p(z1:t,all_x|theta)
-        
+        shape=log_delta.squeeze().size()
+        if len(shape)==1:
+
+          a=F.softmax(log_delta, dim=1)
+        else:
+          a=F.softmax(log_delta.squeeze(), dim=1)
       
-        max_logLL_allz_allx, path[:, -1] = torch.max(log_delta.squeeze(), -1)
+        max_logLL_allz_allx, path[:, -1] = torch.max(a, -1)
         for t in range(T-2, -1, -1):
             # choose the state of z_t according the state choosed of z_t+1.
             path[:, t] = psi[:, t+1].gather(-1,path[:, t+1].view(-1,1)).squeeze()
 
-        return max_logLL_allz_allx, path
+        return (1/T)*max_logLL_allz_allx, path
 
     def neg_log_likelihood(self, input_ids, segment_ids, input_mask, label_ids):
         bert_feats = self._get_bert_features(input_ids, segment_ids, input_mask)
@@ -834,6 +765,7 @@ def evaluate(model, predict_dataloader, batch_size, epoch_th, dataset_name):
     model.eval()
     all_preds = []
     all_labels = []
+    confidence=[]
     total=0
     correct=0
     start = time.time()
@@ -850,6 +782,9 @@ def evaluate(model, predict_dataloader, batch_size, epoch_th, dataset_name):
             valid_label_ids = torch.masked_select(label_ids, predict_mask)
             all_preds.extend(valid_predicted.tolist())
             all_labels.extend(valid_label_ids.tolist())
+            for i in range(len(viterbi_score)):
+                
+                confidence.append(viterbi_score[i])
             # print(len(valid_label_ids),len(valid_predicted),len(valid_label_ids)==len(valid_predicted))
             total += len(valid_label_ids)
             correct += valid_predicted.eq(valid_label_ids).sum().item()
@@ -863,21 +798,85 @@ def evaluate(model, predict_dataloader, batch_size, epoch_th, dataset_name):
     #label_list = [ 'X', '[CLS]', '[SEP]', 'O', 'I-loc', 'B-pers', 'I-pers', 'I-org', 'I-pro', 'B-pro','I-fac','B-fac', 'B-loc', 'B-org', 'B-event', 'I-event']
     #label_map = {i : label for i, label in enumerate(label_list)}
     #for j in range (len(all_labels)):
-     #   all_labels_convert.append(label_map[all_labels[j]])
+    #    all_labels_convert.append(label_map[all_labels[j]])
         
     #for j in range (len(all_preds)):
-    #   all_preds_convert.append(label_map[all_preds[j]])
+    #    all_preds_convert.append(label_map[all_preds[j]])
 
     #print(all_labels_convert)
     #print(all_preds_convert)
     #report = classification_report(all_labels_convert, all_preds_convert,digits=4)
-    report(np.array(all_labels), np.array(all_preds))
-    
+    #print(report)
     end = time.time()
     print('Epoch:%d, Acc:%.2f, Precision: %.2f, Recall: %.2f, F1: %.2f on %s, Spend:%.3f minutes for evaluation' \
         % (epoch_th, 100.*test_acc, 100.*precision, 100.*recall, 100.*f1, dataset_name,(end-start)/60.0))
     print('--------------------------------------------------------------')
-    return test_acc, f1
+    dictionary=[]
+    
+    with open("/content/Arman-Fold1-Original/data/Fold1/train.txt", "w") as writer:
+            for k in range(len(train_examples)):
+                textlist=train_examples[k].words
+                labellist=train_examples[k].labels
+                for indx, item in enumerate(textlist):
+                            if textlist[indx] == ".":
+                                writer.write("%s %s\n\n" % (textlist[indx], labellist[indx]))
+                                #print(textlist[indx], labellist[indx])
+                            else:
+                                writer.write("%s %s\n" % (textlist[indx], labellist[indx]))
+                                #print(textlist[indx], labellist[indx])            
+                        
+
+            for i , prob in enumerate(confidence):
+                #print(prob)
+                file_dictionary = dict(zip(test_examples[i].words, test_examples[i].labels))
+                dictionary.append((prob,file_dictionary))
+               
+            sort_dictionary=sorted(dictionary, key=lambda tup: tup[0] )
+            num=int(0.025*len(confidence))
+            #num=488
+            count=0
+            print("len confidence",len(confidence))
+            print("numbbbber is :",num)
+            nextfile=open("/content/Arman-Fold1-Original/data/Fold1/valid.txt", "w")
+            for key in sort_dictionary:
+                count +=1
+                conf=key[0]
+                #print(conf)
+                dic=key[1]
+                #print(dic)
+                
+                for key_a in dic:
+                    #print(key_a)
+                    textlist=dic[key_a]
+                    #print(textlist)
+                    if count>=num:
+                        if key_a == ".":
+                            
+                            nextfile.write("%s %s\n\n" % (key_a, textlist))
+                                        
+                        else:
+                            nextfile.write("%s %s\n" % ( key_a,textlist ))
+                                             
+                        
+                                    
+                
+                    else:
+                        if key_a == ".":
+                            
+                            writer.write("%s %s\n\n" % (key_a, textlist))
+                                        
+                        else:
+                            writer.write("%s %s\n" % ( key_a,textlist ))
+    return test_acc, f1                             
+
+                
+
+                
+        
+        
+    
+
+   
 
 #%%
 # train procedure
@@ -913,7 +912,7 @@ for epoch in range(start_epoch, total_train_epochs):
             optimizer.zero_grad()
             global_step_th += 1
             
-        print("Epoch:{}-{}/{}, Negative loglikelihood: {} ".format(epoch, step, len(train_dataloader), neg_log_likelihood.item()))
+        #print("Epoch:{}-{}/{}, Negative loglikelihood: {} ".format(epoch, step, len(train_dataloader), neg_log_likelihood.item()))
     
     print('--------------------------------------------------------------')
     print("Epoch:{} completed, Total training's Loss: {}, Spend: {}m".format(epoch, tr_loss, (time.time() - train_start)/60.0))
@@ -929,7 +928,6 @@ for epoch in range(start_epoch, total_train_epochs):
         valid_f1_prev = valid_f1
     '''
 evaluate(model, test_dataloader, batch_size, total_train_epochs, 'Test_set')
-
 
 #%%
 '''
@@ -979,7 +977,8 @@ with torch.no_grad():
             print(test_examples[i].labels)
         break
 #%%
-print(conllProcessor.get_label_map())
+print(conllProcessor.
+label_map())
 # print(test_examples[8].words)
 # print(test_features[8].label_ids)
 
