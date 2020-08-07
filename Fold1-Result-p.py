@@ -16,7 +16,7 @@ import torch.autograd as autograd
 import torch.optim as optim
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils import data
-
+from seqeval.metrics import classification_report
 from tqdm import tqdm, trange
 import collections
 
@@ -870,8 +870,9 @@ def evaluate(model, predict_dataloader, batch_size, epoch_th, dataset_name):
 
     #print(all_labels_convert)
     #print(all_preds_convert)
-    #report = classification_report(all_labels_convert, all_preds_convert,digits=4)
-    report(np.array(all_labels), np.array(all_preds))
+    report = classification_report(all_labels_convert, all_preds_convert,digits=4)
+    print(report)
+    #report(np.array(all_labels), np.array(all_preds))
     
     end = time.time()
     print('Epoch:%d, Acc:%.2f, Precision: %.2f, Recall: %.2f, F1: %.2f on %s, Spend:%.3f minutes for evaluation' \
