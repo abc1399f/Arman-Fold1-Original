@@ -182,7 +182,7 @@ class CoNLLDataProcessor(DataProcessor):
     '''
 
     def __init__(self):
-        self._label_types = [ '[CLS]', '[SEP]', 'O', 'I-loc', 'B-pers', 'I-pers', 'I-org', 'I-pro', 'B-pro','I-fac','B-fac', 'B-loc', 'B-org', 'B-event', 'I-event']
+        self._label_types = [ 'X','[CLS]', '[SEP]', 'O', 'I-loc', 'B-pers', 'I-pers', 'I-org', 'I-pro', 'B-pro','I-fac','B-fac', 'B-loc', 'B-org', 'B-event', 'I-event']
         self._num_labels = len(self._label_types)
         self._label_map = {label: i for i,
                            label in enumerate(self._label_types)}
@@ -856,20 +856,20 @@ def evaluate(model, predict_dataloader, batch_size, epoch_th, dataset_name):
 
     test_acc = correct/total
     precision, recall, f1 = f1_score(np.array(all_labels), np.array(all_preds))
-    #print(all_labels)
-    #print(all_preds)
+    print("all labels",all_labels)
+    print("all preds",all_preds)
     all_labels_convert=[]
     all_preds_convert=[]
-    #label_list = [ 'X', '[CLS]', '[SEP]', 'O', 'I-loc', 'B-pers', 'I-pers', 'I-org', 'I-pro', 'B-pro','I-fac','B-fac', 'B-loc', 'B-org', 'B-event', 'I-event']
-    #label_map = {i : label for i, label in enumerate(label_list)}
-    #for j in range (len(all_labels)):
-     #   all_labels_convert.append(label_map[all_labels[j]])
+    label_list = [ 'X', '[CLS]', '[SEP]', 'O', 'I-loc', 'B-pers', 'I-pers', 'I-org', 'I-pro', 'B-pro','I-fac','B-fac', 'B-loc', 'B-org', 'B-event', 'I-event']
+    label_map = {i : label for i, label in enumerate(label_list)}
+    for j in range (len(all_labels)):
+        all_labels_convert.append(label_map[all_labels[j]])
         
-    #for j in range (len(all_preds)):
-    #   all_preds_convert.append(label_map[all_preds[j]])
+    for j in range (len(all_preds)):
+       all_preds_convert.append(label_map[all_preds[j]])
 
-    #print(all_labels_convert)
-    #print(all_preds_convert)
+    print("all_labels_convert",all_labels_convert)
+    print("all_preds_convert",all_preds_convert)
     report = classification_report(all_labels_convert, all_preds_convert,digits=4)
     print(report)
     #report(np.array(all_labels), np.array(all_preds))
